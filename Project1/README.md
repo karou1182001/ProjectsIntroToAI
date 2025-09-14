@@ -1,5 +1,5 @@
 # ProjectsIntroToAI
->> 
+>> .\.venv\Scripts\activate
 ======================================================================
 Map: A | Heuristic: h1
 Grid (terrain/resource overlay):
