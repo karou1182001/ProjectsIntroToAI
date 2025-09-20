@@ -15,7 +15,7 @@ from typing import Dict, Tuple, List, Optional
 from grid import Grid
 from state import State, make_start_state
 from moves import expand
-from heuristic import heuristic as h  # single admissible heuristic
+from heuristic import heuristic as default_heuristic  # single admissible heuristic
 
 
 # --------- internal helpers ------------------------------------------------------
@@ -50,7 +50,7 @@ def _unwind_path(parents: Dict[Tuple, Tuple],
 
 # --------- public solver ---------------------------------------------------------
 
-def astar_solve(grid: Grid) -> Dict:
+def astar_solve(grid, heuristic_fn = None):
     """
     A* with lazy reopening (no explicit closed set) and stale-entry skipping.
     Returns a dict with:
@@ -62,7 +62,7 @@ def astar_solve(grid: Grid) -> Dict:
       - final_state: State
     """
     # Heuristic function alias (readable)
-    h_fn = h
+    h_fn = heuristic_fn or default_heuristic
 
     # Seed node
     start = make_start_state()

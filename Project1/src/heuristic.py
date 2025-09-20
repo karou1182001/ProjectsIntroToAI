@@ -59,3 +59,9 @@ def heuristic(grid: Grid, st: State) -> int:
 
     # Goal-ready
     return 0
+
+# --- add: baseline heuristic for validation (Dijkstra) 
+def heuristic_zero(grid, st):
+    """Admissible baseline. Always 0 -> A* == Dijkstra (slower, gold standard)."""
+    return 0
+

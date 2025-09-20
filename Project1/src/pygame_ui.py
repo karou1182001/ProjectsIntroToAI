@@ -1,11 +1,12 @@
 """
 What this file does:
 - Opens a Pygame window with a 5x5 grid (terrain colors, base border, resource letters).
-- Lets you switch maps (A/B/C), and run A*.
+- Lets you switch maps (A/B/C), choose a heuristic (Main or Zero/Dijkstra), and run A*.
 - Draws the optimal path and shows metrics in a right side panel.
 
 Keys:
   M      Switch map (A -> B -> C)
+  1/0     Use Main heuristic/ Dijkstra h
   R      Solve (run A*)
   C      Clear result
   ESC    Quit
@@ -23,26 +24,29 @@ from grid import (
 from mapABC import map_A, map_B, map_C
 from aGraphStart import astar_solve
 
+# Heuristics
+from heuristic import heuristic, heuristic_zero
+
 
 # ==== 2) Layout & sizing ==========================================================
 
-ROWS = 5                      # grid rows
-COLS = 5                      # grid cols
+ROWS = 5
+COLS = 5
 
-CELL = 80                     # size of each cell in pixels
-MARGIN = 10                   # outer margin around the grid (all sides)
-PANEL_W = 300                 # width of the right-side info panel
+CELL = 80
+MARGIN = 10
+PANEL_W = 300
 
 GRID_W = CELL * COLS
 GRID_H = CELL * ROWS
 WIN_W = MARGIN * 2 + GRID_W + PANEL_W
 
-# Extra panel height so all info (status, controls, legend, metrics) fits 
-EXTRA_PANEL_H = 120
+# Extra panel height so all info (status, controls, legend, metrics) fits
+EXTRA_PANEL_H = 130
 WIN_H = MARGIN * 2 + GRID_H + EXTRA_PANEL_H
 
 
-# ==== 3) Colors (pastel palette) ========================================
+# ==== 3) Colors (pastel palette) =================================================
 
 BG = (255, 245, 250)      # window background (blush)
 BLACK = (10, 10, 10)
@@ -75,20 +79,14 @@ TERRAIN_TO_COLOR = {
 # ==== 4) Drawing helpers (grid geometry) =========================================
 
 def cell_rect(r: int, c: int) -> pygame.Rect:
-    """
-    Convert a grid coordinate (row, col) to a pygame.Rect on the screen.
-    The rect spans exactly one grid cell.
-    """
+    """Grid (row, col) -> pygame.Rect on the screen."""
     x = MARGIN + c * CELL
     y = MARGIN + r * CELL
     return pygame.Rect(x, y, CELL, CELL)
 
 
 def cell_center(r: int, c: int) -> Tuple[int, int]:
-    """
-    Return the (x, y) pixel coordinates of the center of a grid cell.
-    Useful for drawing the path through cell centers.
-    """
+    """Center (x, y) of a grid cell."""
     rect = cell_rect(r, c)
     return rect.centerx, rect.centery
 
@@ -112,43 +110,44 @@ def draw_grid_background(surface: pygame.Surface, grid: Grid) -> None:
 def _blit_text_with_outline(surface, text, font, center, fg=RESOURCE_TEXT, outline=(255, 255, 255)):
     """Small readability boost: draw a 1-px outline around the letter."""
     txt = font.render(text, True, fg)
-    # Outline passes
     for dx, dy in ((-1,0),(1,0),(0,-1),(0,1),(-1,-1),(1,-1),(-1,1),(1,1)):
-        o_surf = font.render(text, True, outline)
-        surface.blit(o_surf, o_surf.get_rect(center=(center[0]+dx, center[1]+dy)))
-    # Main glyph
+        o = font.render(text, True, outline)
+        surface.blit(o, o.get_rect(center=(center[0]+dx, center[1]+dy)))
     surface.blit(txt, txt.get_rect(center=center))
 
 
 def draw_resource_labels(surface: pygame.Surface, grid: Grid, font: pygame.font.Font) -> None:
     """Draw S/I/C letters on top of everything else."""
+    # supports grid.resource_on(...) or grid.resource_at(...)
+    resource_fn = getattr(grid, "resource_on", None) or getattr(grid, "resource_at", None)
     for r in range(ROWS):
         for c in range(COLS):
-            tile = getattr(grid, "resource_on", getattr(grid, "resource_on"))((r, c))
+            tile = resource_fn((r, c)) if resource_fn else None
             if tile is None:
                 continue
             ch = "S" if tile.kind == "STONE" else ("I" if tile.kind == "IRON" else "C")
             _blit_text_with_outline(surface, ch, font, cell_rect(r, c).center)
 
 
-
 def draw_path(surface: pygame.Surface, path: Optional[List[Tuple[int, int]]]) -> None:
-    """
-    Draw the solution path as:
-      - a polyline through the centers of the visited cells,
-      - filled circles at each step for extra clarity.
-    """
+    """Polyline through cell centers + a dot on each step."""
     if not path or len(path) < 2:
         return
-
     points = [cell_center(r, c) for (r, c) in path]
-
-    # polyline
     pygame.draw.lines(surface, PATH_COLOR, False, points, width=5)
-
-    # node dots
     for p in points:
         pygame.draw.circle(surface, PATH_NODE, p, 6)
+
+def print_sol_path(result: dict) -> None:
+    """Print the optimal path coordinates"""
+    if not (result and result.get("solved")):
+        print("No solution to print.")
+        return
+    path = result["path"]
+    print("\nOptimal path (row, col):")
+    for i, (r, c) in enumerate(path):
+        print(f"{i:02d}: ({r},{c})")
+
 
 
 # ==== 6) Panel rendering (status, controls, legend, metrics) ======================
@@ -159,21 +158,13 @@ def draw_panel(
     small: pygame.font.Font,
     map_name: str,
     result: Optional[dict],
+    heur_label: str,
 ) -> None:
-    """
-    Render the right-side panel. It shows:
-      - current map 
-      - status (ready/solved/no solution)
-      - controls
-      - legend (what each terrain color means)
-      - metrics (only when solved)
-    """
-    # Panel rectangle sized to the full window height minus margins
+    """Right-side info panel."""
     panel = pygame.Rect(MARGIN + GRID_W, MARGIN, PANEL_W, WIN_H - 2 * MARGIN)
     pygame.draw.rect(surface, WHITE, panel)
     pygame.draw.rect(surface, BORDER, panel, width=1)
 
-    # Simple text helper to stack lines downward
     y = panel.top + 16
     def line(txt: str, f=font, dy: int = 26, color=TEXT) -> None:
         nonlocal y
@@ -183,6 +174,7 @@ def draw_panel(
 
     # Title
     line(f"Map: {map_name}")
+    line(f"Heuristic: {heur_label}", small, dy=22)
 
     # Status
     if result is None:
@@ -197,17 +189,18 @@ def draw_panel(
     y += 8
     line("Controls:", small, dy=22)
     line("  M      Switch map", small, dy=22)
+    line("  1/0    Use Main heuristic/ Dijkstra h", small, dy=22)
     line("  R      Solve", small, dy=22)
     line("  C      Clear result", small, dy=22)
     line("  ESC    Quit", small, dy=22)
 
-    # Legend (terrain meaning)
+    # Legend
     y += 8
     line("Legend:", small, dy=22)
 
     def legend_row(label: str, color: Tuple[int, int, int]) -> None:
         nonlocal y
-        sw = 16  # swatch size
+        sw = 16
         rect = pygame.Rect(panel.left + 16, y + 2, sw, sw)
         pygame.draw.rect(surface, color, rect)
         pygame.draw.rect(surface, BORDER, rect, width=1)
@@ -222,7 +215,7 @@ def draw_panel(
     legend_row("Base (0,0) border", BASE_BORDER)
     legend_row("Path", PATH_COLOR)
 
-    # Metrics (only if we have a solved result)
+    # Metrics
     if result and result.get("solved"):
         y += 8
         line("Metrics:", small, dy=22)
@@ -242,20 +235,32 @@ def main() -> None:
     try:
         screen = pygame.display.set_mode((WIN_W, WIN_H))
     except Exception:
-        # Fallback in case of GPU/driver issues
         screen = pygame.display.set_mode((WIN_W, WIN_H), flags=pygame.SWSURFACE)
     pygame.display.set_caption("Game")
 
-    # Fonts for normal text and smaller text
     font = pygame.font.SysFont("arial", 22)
     small = pygame.font.SysFont("arial", 18)
 
-    # Build available maps and start on A
+    # Maps
     maps = [("A", map_A()), ("B", map_B()), ("C", map_C())]
     map_idx = 0
     map_name, grid = maps[map_idx]
 
-    result: Optional[dict] = None   # will store the dict returned by astar_solve
+    # Heuristic selection
+    HEURISTICS = {
+        "main": ("Main Heuristic", heuristic),
+        "zero": ("Zero (Dijkstra)", heuristic_zero),
+    }
+    heur_key = "main"
+
+    result: Optional[dict] = None
+
+    # Wrapper to call A* with or without 'heuristic_fn' depending on your astar_solve signature
+    def run_astar(g, h_fn):
+        try:
+            return astar_solve(g, heuristic_fn=h_fn)  # preferred: with heuristic
+        except TypeError:
+            return astar_solve(g)                     # fallback: no param supported
 
     clock = pygame.time.Clock()
     running = True
@@ -270,30 +275,41 @@ def main() -> None:
                     running = False
 
                 elif ev.key == pygame.K_m:
-                    # Switch map and clear current result
                     map_idx = (map_idx + 1) % len(maps)
                     map_name, grid = maps[map_idx]
                     result = None
 
+                elif ev.key == pygame.K_1:
+                    heur_key = "main"
+                    result = None
+
+                elif ev.key == pygame.K_0:
+                    heur_key = "zero"
+                    result = None
+
                 elif ev.key == pygame.K_r:
-                    # Run A* now with the selected
-                    result = astar_solve(grid)
+                    # Solve with the selected heuristic
+                    _, h_fn = HEURISTICS[heur_key]
+                    result = run_astar(grid, h_fn)
+                    #print path in console
+                    if result and result.get("solved"):
+                        print_sol_path(result)
 
                 elif ev.key == pygame.K_c:
-                    # Clear last result (hide path/metrics)
                     result = None
 
         # -- Drawing --------------------------------------------------------------
-        screen.fill(BG)                  # window background
+        screen.fill(BG)
         draw_grid_background(screen, grid)
         if result and result.get("solved"):
             draw_path(screen, result["path"])
         draw_resource_labels(screen, grid, font)
-        # Right-side info panel
-        draw_panel(screen, font, small, map_name, result)
+
+        label, _ = HEURISTICS[heur_key]
+        draw_panel(screen, font, small, map_name, result, label)
 
         pygame.display.flip()
-        clock.tick(60)  
+        clock.tick(60)
 
     pygame.quit()
     sys.exit()
