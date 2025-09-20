@@ -27,13 +27,13 @@ def reconstruct_path(came_from: Dict[Tuple, Tuple],
     path.reverse()
     return path
 
-def astar_solve(grid: Grid, heuristic_name: str = "h3") -> Dict:
+def astar_solve(grid: Grid) -> Dict:
     """
     A* con "reaperturas" (sin closed set) y descarte de entradas obsoletas.
     Retorna:
       solved, path, total_cost, expanded, time_ms, final_state
     """
-    h_fn = HEURISTICS[heuristic_name]
+    h_fn = HEURISTICS["h1"]
 
     start = make_start_state()
     start_k = state_key(start)

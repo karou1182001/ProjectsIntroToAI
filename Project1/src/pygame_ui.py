@@ -1,12 +1,11 @@
 """
 What this file does:
 - Opens a Pygame window with a 5x5 grid (terrain colors, base border, resource letters).
-- Lets you switch maps (A/B/C), pick a heuristic (h1/h3), and run A*.
+- Lets you switch maps (A/B/C), and run A*.
 - Draws the optimal path and shows metrics in a right side panel.
 
 Keys:
   M      Switch map (A -> B -> C)
-  1 / 3  Select heuristic h1 / h3
   R      Solve (run A*)
   C      Clear result
   ESC    Quit
@@ -153,12 +152,11 @@ def draw_panel(
     font: pygame.font.Font,
     small: pygame.font.Font,
     map_name: str,
-    heuristic: str,
     result: Optional[dict],
 ) -> None:
     """
     Render the right-side panel. It shows:
-      - current map and heuristic
+      - current map 
       - status (ready/solved/no solution)
       - controls
       - legend (what each terrain color means)
@@ -179,7 +177,6 @@ def draw_panel(
 
     # Title
     line(f"Map: {map_name}")
-    line(f"Heuristic: {heuristic}", small, dy=22)
 
     # Status
     if result is None:
@@ -194,7 +191,6 @@ def draw_panel(
     y += 8
     line("Controls:", small, dy=22)
     line("  M      Switch map", small, dy=22)
-    line("  1 / 3  Select h1 / h3", small, dy=22)
     line("  R      Solve", small, dy=22)
     line("  C      Clear result", small, dy=22)
     line("  ESC    Quit", small, dy=22)
@@ -252,7 +248,6 @@ def main() -> None:
     map_idx = 0
     map_name, grid = maps[map_idx]
 
-    heuristic = "h3"            # default heuristic
     result: Optional[dict] = None   # will store the dict returned by astar_solve
 
     clock = pygame.time.Clock()
@@ -273,14 +268,9 @@ def main() -> None:
                     map_name, grid = maps[map_idx]
                     result = None
 
-                elif ev.key == pygame.K_1:
-                    heuristic = "h1"  # pick heuristic h1 (won't solve yet)
-                elif ev.key == pygame.K_3:
-                    heuristic = "h3"  # pick heuristic h3 (won't solve yet)
-
                 elif ev.key == pygame.K_r:
-                    # Run A* now with the selected heuristic
-                    result = astar_solve(grid, heuristic_name=heuristic)
+                    # Run A* now with the selected
+                    result = astar_solve(grid)
 
                 elif ev.key == pygame.K_c:
                     # Clear last result (hide path/metrics)
@@ -295,7 +285,7 @@ def main() -> None:
             draw_path(screen, result["path"])
 
         # Right-side info panel
-        draw_panel(screen, font, small, map_name, heuristic, result)
+        draw_panel(screen, font, small, map_name, result)
 
         pygame.display.flip()
         clock.tick(60)  
