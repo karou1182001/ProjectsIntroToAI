@@ -5,7 +5,7 @@ from grid import (
     RES_STONE, RES_IRON, RES_CRYSTAL,
 )
 
-def build_map_A() -> Grid:
+def map_A() -> Grid:
     """
      Map A 
     """
@@ -25,7 +25,7 @@ def build_map_A() -> Grid:
     return Grid(terrain, resources)
 
 
-def build_map_B() -> Grid:
+def map_B() -> Grid:
     """
     Map B 
     """
@@ -44,7 +44,7 @@ def build_map_B() -> Grid:
     return Grid(terrain, resources)
 
 
-def build_map_C() -> Grid:
+def map_C() -> Grid:
     """
     New Map C
     """

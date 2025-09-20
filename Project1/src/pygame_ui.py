@@ -20,8 +20,8 @@ from grid import (
     Grid,
     TERRAIN_GRASS, TERRAIN_HILL, TERRAIN_SWAMP, TERRAIN_MOUNTAIN,
 )
-from maps import build_map_A, build_map_B, build_map_C
-from astar import astar_solve
+from mapABC import map_A, map_B, map_C
+from aGraphStart import astar_solve
 
 
 # ==== 2) Layout & sizing ==========================================================
@@ -95,35 +95,41 @@ def cell_center(r: int, c: int) -> Tuple[int, int]:
 
 # ==== 5) Grid & path rendering ====================================================
 
-def draw_grid(surface: pygame.Surface, grid: Grid, font: pygame.font.Font) -> None:
-    """
-    Draw the 5x5 grid:
-      - fill each cell with its terrain color,
-      - overlay resource letters (S/I/C) when present,
-      - draw a thick hot-pink border for the Base at (0,0),
-      - draw thin borders for the cell grid lines.
-    """
+def draw_grid_background(surface: pygame.Surface, grid: Grid) -> None:
+    """Terrain fill, base border, and thin grid lines (NO letters)."""
     for r in range(ROWS):
         for c in range(COLS):
             rect = cell_rect(r, c)
             terrain = grid.terrain[r][c]
-
-            # cell fill by terrain color
             pygame.draw.rect(surface, TERRAIN_TO_COLOR[terrain], rect)
 
-            # overlay resource letter (if any)
-            tile = grid.resource_at((r, c))
-            if tile is not None:
-                ch = "S" if tile.kind == "STONE" else ("I" if tile.kind == "IRON" else "C")
-                text_surf = font.render(ch, True, RESOURCE_TEXT)
-                surface.blit(text_surf, text_surf.get_rect(center=rect.center))
-
-            # draw base border on (0,0)
             if (r, c) == grid.base:
                 pygame.draw.rect(surface, BASE_BORDER, rect, width=4)
 
-            # thin grid line
             pygame.draw.rect(surface, BORDER, rect, width=1)
+
+
+def _blit_text_with_outline(surface, text, font, center, fg=RESOURCE_TEXT, outline=(255, 255, 255)):
+    """Small readability boost: draw a 1-px outline around the letter."""
+    txt = font.render(text, True, fg)
+    # Outline passes
+    for dx, dy in ((-1,0),(1,0),(0,-1),(0,1),(-1,-1),(1,-1),(-1,1),(1,1)):
+        o_surf = font.render(text, True, outline)
+        surface.blit(o_surf, o_surf.get_rect(center=(center[0]+dx, center[1]+dy)))
+    # Main glyph
+    surface.blit(txt, txt.get_rect(center=center))
+
+
+def draw_resource_labels(surface: pygame.Surface, grid: Grid, font: pygame.font.Font) -> None:
+    """Draw S/I/C letters on top of everything else."""
+    for r in range(ROWS):
+        for c in range(COLS):
+            tile = getattr(grid, "resource_on", getattr(grid, "resource_on"))((r, c))
+            if tile is None:
+                continue
+            ch = "S" if tile.kind == "STONE" else ("I" if tile.kind == "IRON" else "C")
+            _blit_text_with_outline(surface, ch, font, cell_rect(r, c).center)
+
 
 
 def draw_path(surface: pygame.Surface, path: Optional[List[Tuple[int, int]]]) -> None:
@@ -221,6 +227,7 @@ def draw_panel(
         y += 8
         line("Metrics:", small, dy=22)
         line(f"  Total cost: {result['total_cost']}", small, dy=22)
+        line(f"  Path length: {len(result['path']) - 1}", small, dy=22)
         line(f"  Expanded nodes: {result['expanded']}", small, dy=22)
         line(f"  Time: {result['time_ms']:.2f} ms", small, dy=22)
         s, i, c = result["final_state"].delivered
@@ -244,7 +251,7 @@ def main() -> None:
     small = pygame.font.SysFont("arial", 18)
 
     # Build available maps and start on A
-    maps = [("A", build_map_A()), ("B", build_map_B()), ("C", build_map_C())]
+    maps = [("A", map_A()), ("B", map_B()), ("C", map_C())]
     map_idx = 0
     map_name, grid = maps[map_idx]
 
@@ -278,12 +285,10 @@ def main() -> None:
 
         # -- Drawing --------------------------------------------------------------
         screen.fill(BG)                  # window background
-        draw_grid(screen, grid, font)    # terrain, resources, base
-
-        # If we have a solved result, draw the path on top of the grid
+        draw_grid_background(screen, grid)
         if result and result.get("solved"):
             draw_path(screen, result["path"])
-
+        draw_resource_labels(screen, grid, font)
         # Right-side info panel
         draw_panel(screen, font, small, map_name, result)
 
