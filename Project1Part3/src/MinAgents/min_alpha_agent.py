@@ -1,8 +1,8 @@
 # agents/minimax_agent.py
 from typing import Optional, Tuple
-from state import GameState, A_BASE, B_BASE
-from rules import legal_moves, apply_move, manhattan, moves_towards_base_if_full
-from heuristics import evaluate
+from status import GameState, A_BASE, B_BASE
+from conditions import legal_moves, apply_move, manhattan, moves_towards_base_if_full
+from heuristic import evaluate
 from grid import CAPACITY
 
 INF = 10**9

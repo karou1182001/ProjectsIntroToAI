@@ -28,8 +28,8 @@ from grid import (
     TERRAIN_GRASS, TERRAIN_HILL, TERRAIN_SWAMP, TERRAIN_MOUNTAIN,
 )
 from mapABC import map_A, map_B, map_C           # Generadores de mapas A/B/C (5x5)
-from state import initial_state                  # Crea el estado inicial del juego
-from rules import apply_move                     # Aplica un movimiento y alterna el turno
+from status import initial_state                  # Crea el estado inicial del juego
+from conditions import apply_move                     # Aplica un movimiento y alterna el turno
 from MinAgents.random_agent import RandomAgent   # Agente rival "baseline" aleatorio
 from MinAgents.min_alpha_agent import MinimaxAgent # Agente Minimax con poda alpha-beta
 

@@ -1,7 +1,7 @@
 # heuristics.py
 from typing import Optional
-from state import GameState, A_BASE, B_BASE
-from rules import manhattan
+from status import GameState, A_BASE, B_BASE
+from conditions import manhattan
 
 STEP_TAX = 3            # “impuesto por paso”: rompe empates y castiga paseos
 NEAR_RES_BONUS = 60     # cuánta recompensa por estar cerca de recurso

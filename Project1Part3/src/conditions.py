@@ -2,7 +2,7 @@
 from typing import List, Tuple, Optional
 from dataclasses import replace
 from grid import Grid, LootTile
-from state import GameState, Player, A_BASE, B_BASE
+from status import GameState, Player, A_BASE, B_BASE
 from grid import CAPACITY
 
 Coord = Tuple[int, int]
