@@ -31,7 +31,7 @@ from mapABC import map_A, map_B, map_C           # Generadores de mapas A/B/C (5
 from state import initial_state                  # Crea el estado inicial del juego
 from rules import apply_move                     # Aplica un movimiento y alterna el turno
 from MinAgents.random_agent import RandomAgent   # Agente rival "baseline" aleatorio
-from MinAgents.minimax_agent import MinimaxAgent # Agente Minimax con poda alpha-beta
+from MinAgents.min_alpha_agent import MinimaxAgent # Agente Minimax con poda alpha-beta
 
 
 # ==== 2) Layout & sizing ==========================================================
