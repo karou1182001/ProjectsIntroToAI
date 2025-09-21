@@ -1,128 +1,156 @@
-# agents/minimax_agent.py
-from typing import Optional, Tuple
+
+from typing import Optional, Tuple, Dict, Iterable
 from status import GameState, A_BASE, B_BASE
-from conditions import legal_moves, apply_move, manhattan, moves_towards_base_if_full
+from conditions import (
+    legal_moves,
+    apply_move,
+    manhattan,
+    moves_towards_base_if_full,
+)
 from heuristic import evaluate
 from grid import CAPACITY
 
+
+# =======================
+#  Tunables / constants
+# =======================
 INF = 10**9
-TERM_MULT = 10**6
-REPEAT_PENALTY = 150
+TERMINAL_BOOST = 10**6
+LOOP_PENALTY = 150
+FALLBACK_DIST = 999  
 
-def _nearest_remaining_resource_dist(state: GameState, pos):
-    dmin = None
-    for tile in state.grid.resources:
-        if tile.idx in state.collected_mask:
-            continue
-        d = manhattan(pos, tile.pos)
-        dmin = d if dmin is None else min(dmin, d)
-    return dmin
 
-def _move_order_key(state: GameState, mv: Tuple[int,int]):
-    """Orden: si llevo recursos → acercarme a base; si no → acercarme a recurso."""
-    who = state.turn
-    base = A_BASE if who == "A" else B_BASE
-    # distancia luego de mover
-    after = mv
-    # si mochila llena, prioriza base fuertemente
-    bag_count = (state.A.bag.count() if who == "A" else state.B.bag.count())
-    if bag_count >= CAPACITY:
-        return (0, manhattan(after, base))
-    # si lleva algo (no llena), también prioriza base pero con menos fuerza
-    if bag_count > 0:
-        return (1, manhattan(after, base))
-    # vacía: prioriza estar cerca de algún recurso
-    d = _nearest_remaining_resource_dist(state, after)
-    return (2, d if d is not None else 999)
-
-def _hashable(s: GameState):
+# ====================================
+# Small helpers 
+# ====================================
+def _currentState(s: GameState) -> Tuple:
     return (s.A.pos, s.B.pos, s.A.bag.items, s.B.bag.items, s.collected_mask, s.turn)
 
-class MinimaxAgent:
-    def __init__(self, depth: int = 5):
+
+def _closest_obj_dist(s: GameState, pos: Tuple[int, int]) -> Optional[int]:
+    best = None
+    for t in s.grid.resources:
+        if t.idx in s.collected_mask:
+            continue
+        d = manhattan(pos, t.pos)
+        best = d if best is None else min(best, d)
+    return best
+
+
+# =========================
+# The Agent 
+# =========================
+class AlphaBetaAgent:
+    def __init__(self, depth: int = 5) -> None:
         self.depth = depth
+        self._seen: Dict[Tuple, int] = {}
 
-    def select_move(self, state: GameState) -> Optional[Tuple[int, int]]:
-        self._seen_counts = {}
-
-        root_is_max = (state.turn == "A")
-        best_val = -INF if root_is_max else INF
-        best_mv = None
-        alpha, beta = -INF, INF
-
-        # *** CLAVE: si la mochila del jugador en turno está llena, filtra movimientos hacia base
-        root_moves = moves_towards_base_if_full(state)
-        moves = sorted(root_moves, key=lambda mv: _move_order_key(state, mv))
-
-        # desempate anti-backtrack: si dos valores empatan, prefiere el que REDUCE distancia a base
-        base = A_BASE if state.turn == "A" else B_BASE
-        curd = manhattan((state.A.pos if state.turn=="A" else state.B.pos), base)
-
-        for mv in moves:
-            child = apply_move(state, mv)
-            val = self._minimax(child, self.depth - 1, alpha, beta)
-
-            if best_mv is None:
-                best_val, best_mv = val, mv
-            else:
-                better = (val > best_val) if root_is_max else (val < best_val)
-                if better:
-                    best_val, best_mv = val, mv
-                elif val == best_val:
-                    # tie-breaker: preferir movimiento que acerque más a base si mochila llena
-                    nextd = manhattan(mv, base)
-                    bestd = manhattan(best_mv, base)
-                    if nextd < bestd:
-                        best_val, best_mv = val, mv
-
-            if root_is_max:
-                alpha = max(alpha, val)
-            else:
-                beta = min(beta, val)
-
-            if beta <= alpha:
-                break
-
-        return best_mv
-
-    def _bump_seen(self, s: GameState) -> int:
-        h = _hashable(s)
-        k = self._seen_counts.get(h, 0) + 1
-        self._seen_counts[h] = k
-        return k
-
-    def _score_leaf(self, s: GameState, repeated: int) -> int:
-        if s.is_terminal():
-            return s.utility() * TERM_MULT
-        val = evaluate(s)
-        if repeated > 1:
-            val -= REPEAT_PENALTY * (repeated - 1)
-        return val
-
-    def _children(self, s: GameState):
-        """En nodos internos, mantiene la política: si mochila llena, restringe a movimientos hacia base."""
-        ms = moves_towards_base_if_full(s)
-        return sorted(ms, key=lambda mv: _move_order_key(s, mv))
-
-    def _minimax(self, state: GameState, depth: int, alpha: int, beta: int) -> int:
-        reps = self._bump_seen(state)
-        if state.is_terminal() or depth == 0:
-            return self._score_leaf(state, reps)
+    def decide_move(self, state: GameState) -> Optional[Tuple[int, int]]:
+        """
+          * Respect MAX/MIN role at the root
+          * Apply bag ull policy at the root
+          * Use move ordering and  alpha beta
+          * Tie break: when values tie and bag is full, prefer the move that reduces distance to base more
+        """
+        self._seen.clear()
 
         is_max = (state.turn == "A")
-        if is_max:
-            value = -INF
-            for mv in self._children(state):
-                value = max(value, self._minimax(apply_move(state, mv), depth - 1, alpha, beta))
-                alpha = max(alpha, value)
-                if beta <= alpha:
+        a, b = -INF, INF
+        best_val = -INF if is_max else INF
+        best_move: Optional[Tuple[int, int]] = None
+
+        base = A_BASE if is_max else B_BASE
+        for mv in self._root_candidates(state):
+            nxt = apply_move(state, mv)
+            val = self._alphabeta(nxt, self.depth - 1, a, b)
+
+            if self._is_better(val, best_val, is_max):
+                best_val, best_move = val, mv
+            elif val == best_val:
+                if self._active_bag_count(state) >= CAPACITY:
+                    if self._closer(mv, best_move, base):
+                        best_val, best_move = val, mv
+
+            if is_max:
+                a = max(a, val)
+            else:
+                b = min(b, val)
+            if b <= a:
+                break  
+
+        return best_move
+
+    def _alphabeta(self, s: GameState, depth: int, a: int, b: int) -> int:
+        """Standard minimax + alpha–beta with repetition penalty and good ordering."""
+        key = _currentState(s)
+        self._seen[key] = self._seen.get(key, 0) + 1
+        rep_count = self._seen[key]
+
+
+        if s.is_terminal() or depth == 0:
+            return self._score_leaf(s, rep_count)
+
+        max_turn = (s.turn == "A")
+        if max_turn:
+            best = -INF
+            for mv in self._ordered_children(s):
+                nxt = apply_move(s, mv)
+                best = max(best, self._alphabeta(nxt, depth - 1, a, b))
+                a = max(a, best)
+                if b <= a:
                     break
-            return value
+            return best
         else:
-            value = INF
-            for mv in self._children(state):
-                value = min(value, self._minimax(apply_move(state, mv), depth - 1, alpha, beta))
-                beta = min(beta, value)
-                if beta <= alpha:
+            best = INF
+            for mv in self._ordered_children(s):
+                nxt = apply_move(s, mv)
+                best = min(best, self._alphabeta(nxt, depth - 1, a, b))
+                b = min(b, best)
+                if b <= a:
                     break
-            return value
+            return best
+
+    def _root_candidates(self, s: GameState) -> Iterable[Tuple[int, int]]:
+        moves = moves_towards_base_if_full(s)
+        return sorted(moves, key=lambda mv: self._order_key(s, mv))
+
+    def _ordered_children(self, s: GameState) -> Iterable[Tuple[int, int]]:
+        moves = moves_towards_base_if_full(s)
+        return sorted(moves, key=lambda mv: self._order_key(s, mv))
+    
+    def _score_leaf(self, s: GameState, repeats: int) -> int:
+        if s.is_terminal():
+            return s.utility() * TERMINAL_BOOST
+        score = evaluate(s)
+        if repeats > 1:
+            score -= LOOP_PENALTY * (repeats - 1)
+        return score
+
+    def _order_key(self, s: GameState, mv: Tuple[int, int]) -> Tuple[int, int]:
+        who = s.turn
+        base = A_BASE if who == "A" else B_BASE
+        bag_ct = self._active_bag_count(s)
+        dest = mv
+
+        if bag_ct >= CAPACITY:
+            return (0, manhattan(dest, base))
+        if bag_ct > 0:
+            return (1, manhattan(dest, base))
+
+        d_res = _closest_obj_dist(s, dest)
+        return (2, d_res if d_res is not None else FALLBACK_DIST)
+
+    # ---------- 4.5 Tiny helpers (intent-focused) ----------
+    @staticmethod
+    def _is_better(val: int, best: int, is_max: bool) -> bool:
+        return (val > best) if is_max else (val < best)
+
+    @staticmethod
+    def _closer(a_move: Tuple[int, int], b_move: Optional[Tuple[int, int]], base: Tuple[int, int]) -> bool:
+        if b_move is None:
+            return True
+        return manhattan(a_move, base) < manhattan(b_move, base)
+
+    @staticmethod
+    def _active_bag_count(s: GameState) -> int:
+        return s.A.bag.count() if s.turn == "A" else s.B.bag.count()
