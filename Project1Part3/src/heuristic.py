@@ -1,43 +1,78 @@
-# heuristics.py
 from typing import Optional
 from status import GameState, A_BASE, B_BASE
 from conditions import manDist
 
-STEP_TAX = 3            # “impuesto por paso”: rompe empates y castiga paseos
-NEAR_RES_BONUS = 60     # cuánta recompensa por estar cerca de recurso
-RETURN_BASE_BONUS = 260 # fuerza a volver a base si lleva ítems
-POSSESSION_W = 220      # peso de (entregas + mochila)
+STEP_PENALTY = 3
+NEAR_RES_PLUS= 60
+RETURN_BASE_PLUS = 260
+POSSESSION_W = 220
 
-def _nearest_remaining_resource_dist(state: GameState, pos) -> Optional[int]:
-    dmin = None
-    for tile in state.grid.resources:
-        if tile.idx in state.collected_mask:
-            continue
-        d = manDist(pos, tile.pos) * state.grid.cheapest_step()
-        dmin = d if dmin is None else min(dmin, d)
-    return dmin
+
+
+def __closest_remaining_cost(state: GameState, pos) -> Optional[int]:
+    """Return min(manDist*cheapest_step)s"""
+    cheapest = state.grid.cheapest_step()
+    # Build all distances to resources that are still on the board
+    dists = [
+        manDist(pos, tile.pos) * cheapest
+        for tile in state.grid.resources
+        if tile.idx not in state.collected_mask
+    ]
+    return min(dists) if dists else None
+
+
+def __possession_delta(state: GameState) -> int:
+    """(A delivered + bag) - (B delivered + bag)"""
+    A, B = state.A, state.B
+    return (A.delivered_total + A.bag.count()) - (B.delivered_total + B.bag.count())
+
+
+def __home_pull(state: GameState, pos, base, carrying_count: int) -> int:
+    """
+    Bonus that pushes the carrier toward its base when carrying anything.
+    max(0, RETURN_BASE_PLUS - manDist(pos, base) * cheapest * 10)
+    """
+    if carrying_count <= 0:
+        return 0
+    cheapest = state.grid.cheapest_step()
+    dist_term = manDist(pos, base) * cheapest * 10
+    boost = RETURN_BASE_PLUS - dist_term
+    return boost if boost > 0 else 0
+
+
+def __proximity_term(closest_cost: Optional[int]) -> int:
+    if closest_cost is None:
+        return 0
+    remaining = NEAR_RES_PLUS- closest_cost
+    return remaining if remaining > 0 else 0
+
+
+# ===================== public API =====================
 
 def evaluate(state: GameState) -> int:
+    """
+    Heuristic:
+      + Strong possession (delivered + in bag)
+      + Near resource encouragement when resources remain
+      + Strong return to base pull when carrying
+      - Small per step tax to discourage stalling
+    """
     A, B = state.A, state.B
-    baseA, baseB = A_BASE, B_BASE
 
-    # 1) Posesión fuerte: entregado + mochila (A menos B)
-    val = (A.delivered_total + A.bag.count()
-           - (B.delivered_total + B.bag.count())) * POSSESSION_W
+    # 1) Possession (A - B) * weight
+    score = __possession_delta(state) * POSSESSION_W
 
-    # 2) Proximidad a recursos si aún quedan
-    dA = _nearest_remaining_resource_dist(state, A.pos)
-    dB = _nearest_remaining_resource_dist(state, B.pos)
-    if dA is not None: val += max(0, NEAR_RES_BONUS - dA)
-    if dB is not None: val -= max(0, NEAR_RES_BONUS - dB)
+    # 2) Proximity to remaining resources
+    a_near = __closest_remaining_cost(state, A.pos)
+    b_near = __closest_remaining_cost(state, B.pos)
+    score += __proximity_term(a_near)
+    score -= __proximity_term(b_near)
 
-    # 3) Si llevan recursos, empujar fuerte hacia su base
-    if A.bag.count() > 0:
-        val += max(0, RETURN_BASE_BONUS - manDist(A.pos, baseA) * state.grid.cheapest_step() * 10)
-    if B.bag.count() > 0:
-        val -= max(0, RETURN_BASE_BONUS - manDist(B.pos, baseB) * state.grid.cheapest_step() * 10)
+    # 3) Return to base pull when carrying items
+    score += __home_pull(state, A.pos, A_BASE, A.bag.count())
+    score -= __home_pull(state, B.pos, B_BASE, B.bag.count())
 
-    # 4) Impuesto por paso: favorece terminar y evita ping-pong
-    val -= STEP_TAX
+    # 4) Per step tax 
+    score -= STEP_PENALTY
 
-    return val
+    return score

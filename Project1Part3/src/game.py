@@ -8,10 +8,10 @@ from grid import (
     Grid,
     TERRAIN_GRASS, TERRAIN_HILL, TERRAIN_SWAMP, TERRAIN_MOUNTAIN,
 )
-from mapABC import map_A, map_B, map_C           # Generadores de mapas A/B/C (5x5)
-from status import initial_state                  # Crea el estado inicial del juego
-from conditions import exec_move                     # Aplica un movimiento y alterna el turno
-from MinAgents.random_agent import RandomAgent   # Agente rival "baseline" aleatorio
+from mapABC import map_A, map_B, map_C           
+from status import initial_state                 
+from conditions import exec_move                    
+from MinAgents.random_agent import RandomAgent   
 from MinAgents.min_alpha_agent import AlphaBetaAgent
 
 
@@ -188,7 +188,7 @@ def draw_panel(
     line(f"  B delivered: {ui_state['B_del']}  bag: {ui_state['B_bag']}", small, dy=22)
     line(f"  Remaining on map: {ui_state['remaining']}", small, dy=22)
     if ui_state["last_decision_ms"] is not None:
-        line(f"  Last AI decide: {ui_state['last_decision_ms']:.2f} ms", small, dy=22)
+        line(f" last mov decide: {ui_state['last_decision_ms']:.2f} ms", small, dy=22)
     if ui_state["game_over"]:
         # Finish
         result = "Tie!"
