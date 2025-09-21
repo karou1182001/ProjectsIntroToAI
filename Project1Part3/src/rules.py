@@ -3,6 +3,7 @@ from typing import List, Tuple, Optional
 from dataclasses import replace
 from grid import Grid, LootTile
 from state import GameState, Player, A_BASE, B_BASE
+from grid import CAPACITY
 
 Coord = Tuple[int, int]
 
@@ -18,6 +19,33 @@ def legal_moves(state: GameState) -> List[Coord]:
     who = state.turn
     me: Player = state.A if who == "A" else state.B
     return neighbors_in_bounds(state.grid, me.pos)
+
+
+
+def _base_of(who: str):
+    return A_BASE if who == "A" else B_BASE
+
+def moves_towards_base_if_full(state: GameState) -> List[Coord]:
+    """Si la mochila del jugador en turno está llena, devuelve solo movimientos que
+    ACERCAN a su base. Si no hay ninguno que acerque, devuelve los legales normales."""
+    who = state.turn
+    me  = state.A if who == "A" else state.B
+    base = _base_of(who)
+    all_moves = legal_moves(state)
+
+    if me.bag.count() < CAPACITY:
+        return all_moves
+
+    cur = manhattan(me.pos, base)
+    better = [m for m in all_moves if manhattan(m, base) < cur]
+
+    # Si hay una movida que entra directamente a base, priorízala (atajo determinista)
+    direct = [m for m in better if m == base]
+    if direct:
+        return direct
+
+    return better if better else all_moves
+
 
 def _resource_available(state: GameState, at: Coord) -> Optional[LootTile]:
     tile = state.grid.resource_on(at)
@@ -77,3 +105,5 @@ def apply_move(state: GameState, dest: Coord) -> GameState:
 
     # Cambiar turno
     return new_state.switch_turn()
+
+

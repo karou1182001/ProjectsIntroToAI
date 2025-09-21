@@ -2,10 +2,13 @@
 from typing import Optional
 from state import GameState, A_BASE, B_BASE
 from rules import manhattan
-from grid import LootTile
+
+STEP_TAX = 3            # “impuesto por paso”: rompe empates y castiga paseos
+NEAR_RES_BONUS = 60     # cuánta recompensa por estar cerca de recurso
+RETURN_BASE_BONUS = 260 # fuerza a volver a base si lleva ítems
+POSSESSION_W = 220      # peso de (entregas + mochila)
 
 def _nearest_remaining_resource_dist(state: GameState, pos) -> Optional[int]:
-    """Distancia Manhattan al recurso restante más cercano (si no hay, None)."""
     dmin = None
     for tile in state.grid.resources:
         if tile.idx in state.collected_mask:
@@ -15,29 +18,26 @@ def _nearest_remaining_resource_dist(state: GameState, pos) -> Optional[int]:
     return dmin
 
 def evaluate(state: GameState) -> int:
-    """
-    Heurística sencilla pero efectiva:
-    (entregados + mochila)A - (entregados + mochila)B
-    - distancia al recurso más cercano (premiamos estar cerca)
-    - si lleva recursos: premiamos estar cerca de base
-    """
-    A = state.A; B = state.B
-    baseA = A_BASE; baseB = B_BASE
+    A, B = state.A, state.B
+    baseA, baseB = A_BASE, B_BASE
 
-    scoreA = A.delivered_total + A.bag.count()
-    scoreB = B.delivered_total + B.bag.count()
-    val = (scoreA - scoreB) * 100  # peso principal
+    # 1) Posesión fuerte: entregado + mochila (A menos B)
+    val = (A.delivered_total + A.bag.count()
+           - (B.delivered_total + B.bag.count())) * POSSESSION_W
 
-    # Cercanía a recursos
+    # 2) Proximidad a recursos si aún quedan
     dA = _nearest_remaining_resource_dist(state, A.pos)
     dB = _nearest_remaining_resource_dist(state, B.pos)
-    if dA is not None: val += max(0, 30 - dA)  # acercarse suma
-    if dB is not None: val -= max(0, 30 - dB)  # rival cerca resta
+    if dA is not None: val += max(0, NEAR_RES_BONUS - dA)
+    if dB is not None: val -= max(0, NEAR_RES_BONUS - dB)
 
-    # Si llevan recursos, acercarse a la base es bueno
+    # 3) Si llevan recursos, empujar fuerte hacia su base
     if A.bag.count() > 0:
-        val += max(0, 30 - manhattan(A.pos, baseA)*state.grid.cheapest_step())
+        val += max(0, RETURN_BASE_BONUS - manhattan(A.pos, baseA) * state.grid.cheapest_step() * 10)
     if B.bag.count() > 0:
-        val -= max(0, 30 - manhattan(B.pos, baseB)*state.grid.cheapest_step())
+        val -= max(0, RETURN_BASE_BONUS - manhattan(B.pos, baseB) * state.grid.cheapest_step() * 10)
+
+    # 4) Impuesto por paso: favorece terminar y evita ping-pong
+    val -= STEP_TAX
 
     return val
