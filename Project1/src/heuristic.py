@@ -1,4 +1,3 @@
-# file: heuristics.py
 from grid import Grid, CAPACITY, RES_STONE, RES_IRON, RES_CRYSTAL
 from state import State
 

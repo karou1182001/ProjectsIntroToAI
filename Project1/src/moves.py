@@ -1,4 +1,3 @@
-# file: transitions.py
 from typing import List, Tuple, Optional
 from grid import Grid, CAPACITY, RES_STONE, RES_IRON, RES_CRYSTAL
 from state import State, backpack_tuple, apply_deposit

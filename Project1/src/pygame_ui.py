@@ -22,7 +22,7 @@ from grid import (
     TERRAIN_GRASS, TERRAIN_HILL, TERRAIN_SWAMP, TERRAIN_MOUNTAIN,
 )
 from mapABC import map_A, map_B, map_C
-from aGraphStart import astar_solve
+from aGraphStar import astar_solve
 
 # Heuristics
 from heuristic import heuristic, heuristic_zero

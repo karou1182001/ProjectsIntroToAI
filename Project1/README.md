@@ -1,141 +1,72 @@
-# ProjectsIntroToAI
->> .\.venv\Scripts\activate
-======================================================================
-Map: A | Heuristic: h1
-Grid (terrain/resource overlay):
-B . . ^ C
-. ~ . S .
-. I . ^ .
-S ~ . ^ .
-. . S . I
-----------------------------------------------------------------------
-Solved!
+# A* Collector 
 
-Path: [(0, 0), (0, 1), (0, 2), (1, 2), (2, 2), (3, 2), (4, 2), (4, 3), (4, 4), (3, 4), (2, 4), (1, 4), (1, 3), (1, 2), (0, 2), (0, 1), (0, 0), (0, 1), (0, 2), (1, 2), (1, 3), (1, 4), (0, 4), (0, 3), (0, 2), (0, 1), (0, 0), (1, 0), (2, 0), (3, 0), (2, 0), (2, 1), (2, 0), (1, 0), (0, 0)]
-Total cost: 35
-Expanded nodes: 6312 | Time: 150.85 ms
-Final delivered: {Stone:3, Iron:2, Crystal:1}
+Small A* search project with a 5×5 grid, resource pickups, terrain costs, and a Pygame UI.
+Goal: deliver Stone ×3, Iron ×2, Crystal ×1 while minimizing total cost (sum of terrain entry costs).
 
-Grid with path (*) marked:
-B * * * *
-* ~ * * *
-* * * ^ *
-* ~ * ^ *
-. . * * *
+Features
 
-======================================================================
-Map: A | Heuristic: h3
-Grid (terrain/resource overlay):
-B . . ^ C
-. ~ . S .
-. I . ^ .
-S ~ . ^ .
-. . S . I
-----------------------------------------------------------------------
-Solved!
+A* with pluggable heuristics:
 
-Path: [(0, 0), (0, 1), (0, 2), (1, 2), (1, 3), (1, 4), (0, 4), (0, 3), (0, 2), (0, 1), (0, 0), (0, 1), (0, 2), (1, 2), (2, 2), (3, 2), (4, 2), (4, 3), (4, 4), (3, 4), (2, 4), (1, 4), (1, 3), (1, 2), (0, 2), (0, 1), (0, 0), (1, 0), (2, 0), (3, 0), (2, 0), (2, 1), (2, 0), (1, 0), (0, 0)]
-Total cost: 35
-Expanded nodes: 4399 | Time: 131.39 ms
-Final delivered: {Stone:3, Iron:2, Crystal:1}
+- Main heuristic (admissible, guided)
 
-Grid with path (*) marked:
-B * * * *
-* ~ * * *
-* * * ^ *
-* ~ * ^ *
-. . * * *
+- Zero / Dijkstra baseline (for validation)
 
-======================================================================
-Map: B | Heuristic: h1
-Grid (terrain/resource overlay):
-B ^ ^ S .
-~ ~ ^ . C
-. . ~ ~ I
-S ^ . ^ .
-. . S ~ I
-----------------------------------------------------------------------
-Solved!
+Clean GUI: terrain colors, S/I/C resource labels, optimal path, metrics.
 
-Path: [(0, 0), (0, 1), (0, 2), (0, 3), (1, 3), (1, 4), (0, 4), (0, 3), (0, 2), (0, 1), (0, 0), (0, 1), (0, 2), (0, 3), (1, 3), (1, 4), (2, 4), (3, 4), (4, 4), (3, 4), (2, 4), (1, 4), (0, 4), (0, 3), (0, 2), (0, 1), (0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (4, 1), (4, 2), (4, 1), (4, 0), (3, 0), (2, 0), (1, 0), (0, 0)]  
-Total cost: 50
-Expanded nodes: 6409 | Time: 151.08 ms
-Final delivered: {Stone:3, Iron:2, Crystal:1}
+Prints the exact optimal path (cell coordinates) to the terminal when you solve.
 
-Grid with path (*) marked:
-B * * * *
-* ~ ^ * *
-* . ~ ~ *
-* ^ . ^ *
-* * * ~ *
+## Requirements
 
-======================================================================
-Map: B | Heuristic: h3
-Grid (terrain/resource overlay):
-B ^ ^ S .
-~ ~ ^ . C
-. . ~ ~ I
-S ^ . ^ .
-. . S ~ I
-----------------------------------------------------------------------
-Solved!
+- Python 3.10+
 
-Path: [(0, 0), (0, 1), (0, 2), (0, 3), (1, 3), (1, 4), (0, 4), (0, 3), (0, 2), (0, 1), (0, 0), (0, 1), (0, 2), (0, 3), (1, 3), (1, 4), (2, 4), (3, 4), (4, 4), (3, 4), (2, 4), (1, 4), (0, 4), (0, 3), (0, 2), (0, 1), (0, 0), (1, 0), (2, 0), (2, 1), (3, 1), (4, 1), (4, 2), (4, 1), (4, 0), (3, 0), (2, 0), (1, 0), (0, 0)]  
-Total cost: 51
-Expanded nodes: 4847 | Time: 134.24 ms
-Final delivered: {Stone:3, Iron:2, Crystal:1}
+- Pygame (installed via pip)
 
-Grid with path (*) marked:
-B * * * *
-* ~ ^ * *
-* * ~ ~ *
-* * . ^ *
-* * * ~ *
+## Installation
 
-======================================================================
-Map: C | Heuristic: h1
-Grid (terrain/resource overlay):
-B # ^ # C
-. # ~ S .
-. . # ~ I
-# ^ S ^ #
-S . . . I
-----------------------------------------------------------------------
-Solved!
+```python
+# 1) Create & activate venv
+python -m venv .venv
+# Windows:
+.venv\Scripts\activate
+# macOS/Linux:
+source .venv/bin/activate
 
-Path: [(0, 0), (1, 0), (2, 0), (2, 1), (3, 1), (4, 1), (4, 2), (4, 3), (4, 4), (3, 4), (2, 4), (2, 3), (2, 2), (2, 1), (2, 0), (1, 0), (0, 0), (1, 0), (2, 0), (2, 1), (3, 1), (3, 2), (4, 2), (4, 1), (4, 0), (3, 0), (2, 0), (1, 0), (0, 0), (1, 0), (1, 1), (1, 2), (1, 3), (1, 4), (0, 4), (0, 3), (0, 2), (0, 1), (0, 0)]  
-Total cost: 64
-Expanded nodes: 7109 | Time: 160.99 ms
-Final delivered: {Stone:3, Iron:2, Crystal:1}
+# 2) Install deps
+pip install -r requirements.txt   
+# or:
+pip install pygame
+```
 
-Grid with path (*) marked:
-B * * * *
-* * * * *
-* * * * *
-* * * ^ *
-* * * * *
+## Usage
 
-======================================================================
-Map: C | Heuristic: h3
-Grid (terrain/resource overlay):
-B # ^ # C
-. # ~ S .
-. . # ~ I
-# ^ S ^ #
-S . . . I
-----------------------------------------------------------------------
-Solved!
+```python
+python pygame_ui.py
+```
+The window shows the grid on the left and a panel on the right with status, controls, legend, and metrics.
 
-Path: [(0, 0), (1, 0), (2, 0), (2, 1), (3, 1), (3, 2), (4, 2), (4, 1), (4, 0), (3, 0), (2, 0), (1, 0), (0, 0), (1, 0), (2, 0), (2, 1), (3, 1), (4, 1), (4, 2), (4, 3), (4, 4), (3, 4), (2, 4), (2, 3), (2, 2), (2, 1), (2, 0), (1, 0), (0, 0), (1, 0), (1, 1), (1, 2), (1, 3), (1, 4), (0, 4), (0, 3), (0, 2), (0, 1), (0, 0)]  
-Total cost: 64
-Expanded nodes: 6130 | Time: 177.81 ms
-Final delivered: {Stone:3, Iron:2, Crystal:1}
+## Controls
+- M — Switch map 
+- 1 — Use Main heuristic
+- 0 — Use Zero (Dijkstra) heuristic
+- R — Solve (run A* with the currently selected heuristic)
+-  C — Clear result (hide path/metrics)
+- ESC — Quit
 
-Grid with path (*) marked:
-B * * * *
-* * * * *
-* * * * *
-* * * ^ *
-* * * * *
+### What you’ll see
 
-PS C:\Users\maria\OneDrive\Documentos\USF\master3Sem\IntroToAI\ProjectsIntroToAI> 
+Pink path over the grid (the optimal route).
+
+### Metrics in the right panel:
+- Total cost (sum of terrain entry costs: Grass=1, Hill=2, Swamp=3, Mountain=4)
+- Path length (number of moves len(path) - 1)
+- Expanded nodes
+- Runtime 
+- Delivered: S / I / C
+
+### Path printed to terminal
+When you press R and a solution is found, the program also prints to your terminal:
+the ordered list of coordinates of the optimal path
+
+**AI assistance:** We used ChatGPT to speed up coding:  all design/algorithms are our own.
+
+

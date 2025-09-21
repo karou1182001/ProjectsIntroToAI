@@ -1,4 +1,3 @@
-# file: grid.py
 """
 5x5 world model used by the Pygame GUI + A* solver.
 

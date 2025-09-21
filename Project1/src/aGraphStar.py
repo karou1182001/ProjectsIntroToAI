@@ -1,4 +1,3 @@
-# file: astar.py
 """
 A* search (reopening-friendly) with a single heuristic.
 This variant:

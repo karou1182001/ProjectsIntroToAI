@@ -1,4 +1,3 @@
-# file: state.py
 """
 State representation for the Grid Resource A* project.
 
