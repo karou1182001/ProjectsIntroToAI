@@ -1,5 +1,8 @@
 # A* Collector 
 
+<img width="336" height="301" alt="image" src="https://github.com/user-attachments/assets/7a18ea95-a895-469a-bb45-326201b81eb2" />
+
+
 Small A* search project with a 5×5 grid, resource pickups, terrain costs, and a Pygame UI.
 Goal: deliver Stone ×3, Iron ×2, Crystal ×1 while minimizing total cost (sum of terrain entry costs).
 
