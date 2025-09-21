@@ -10,7 +10,7 @@ from grid import (
 )
 from mapABC import map_A, map_B, map_C           # Generadores de mapas A/B/C (5x5)
 from status import initial_state                  # Crea el estado inicial del juego
-from conditions import apply_move                     # Aplica un movimiento y alterna el turno
+from conditions import exec_move                     # Aplica un movimiento y alterna el turno
 from MinAgents.random_agent import RandomAgent   # Agente rival "baseline" aleatorio
 from MinAgents.min_alpha_agent import AlphaBetaAgent
 
@@ -205,7 +205,7 @@ def step_turn(state, A_agent, B_agent):
     Ejecuta exactamente un turno (A o B, según corresponda):
     - Si terminal, devuelve tal cual.
     - Llama decide_move del agente en turno (mide el tiempo).
-    - Aplica el movimiento con 'apply_move' (que alterna el turno internamente).
+    - Aplica el movimiento con 'exec_move' (que alterna el turno internamente).
     - Retorna (nuevo_estado, es_terminal, ms_decision_ultima_jugada).
     """
     if state.is_terminal():
@@ -218,14 +218,14 @@ def step_turn(state, A_agent, B_agent):
         last_ms = (time.perf_counter() - t0) * 1000.0
         if mv is None:                                        
             return state, True, last_ms
-        state = apply_move(state, mv)                        
+        state = exec_move(state, mv)                        
     else:
         t0 = time.perf_counter()
         mv = B_agent.decide_move(state)                      
         last_ms = (time.perf_counter() - t0) * 1000.0
         if mv is None:
             return state, True, last_ms
-        state = apply_move(state, mv)
+        state = exec_move(state, mv)
 
     return state, state.is_terminal(), last_ms
 

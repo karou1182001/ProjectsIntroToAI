@@ -2,10 +2,10 @@
 from typing import Optional, Tuple, Dict, Iterable
 from status import GameState, A_BASE, B_BASE
 from conditions import (
-    legal_moves,
-    apply_move,
-    manhattan,
-    moves_towards_base_if_full,
+    valid_mov,
+    exec_move,
+    manDist,
+    full_moveto_base,
 )
 from heuristic import evaluate
 from grid import CAPACITY
@@ -32,7 +32,7 @@ def _closest_obj_dist(s: GameState, pos: Tuple[int, int]) -> Optional[int]:
     for t in s.grid.resources:
         if t.idx in s.collected_mask:
             continue
-        d = manhattan(pos, t.pos)
+        d = manDist(pos, t.pos)
         best = d if best is None else min(best, d)
     return best
 
@@ -61,7 +61,7 @@ class AlphaBetaAgent:
 
         base = A_BASE if is_max else B_BASE
         for mv in self._root_candidates(state):
-            nxt = apply_move(state, mv)
+            nxt = exec_move(state, mv)
             val = self._alphabeta(nxt, self.depth - 1, a, b)
 
             if self._is_better(val, best_val, is_max):
@@ -94,7 +94,7 @@ class AlphaBetaAgent:
         if max_turn:
             best = -INF
             for mv in self._ordered_children(s):
-                nxt = apply_move(s, mv)
+                nxt = exec_move(s, mv)
                 best = max(best, self._alphabeta(nxt, depth - 1, a, b))
                 a = max(a, best)
                 if b <= a:
@@ -103,7 +103,7 @@ class AlphaBetaAgent:
         else:
             best = INF
             for mv in self._ordered_children(s):
-                nxt = apply_move(s, mv)
+                nxt = exec_move(s, mv)
                 best = min(best, self._alphabeta(nxt, depth - 1, a, b))
                 b = min(b, best)
                 if b <= a:
@@ -111,11 +111,11 @@ class AlphaBetaAgent:
             return best
 
     def _root_candidates(self, s: GameState) -> Iterable[Tuple[int, int]]:
-        moves = moves_towards_base_if_full(s)
+        moves = full_moveto_base(s)
         return sorted(moves, key=lambda mv: self._order_key(s, mv))
 
     def _ordered_children(self, s: GameState) -> Iterable[Tuple[int, int]]:
-        moves = moves_towards_base_if_full(s)
+        moves = full_moveto_base(s)
         return sorted(moves, key=lambda mv: self._order_key(s, mv))
     
     def _score_leaf(self, s: GameState, repeats: int) -> int:
@@ -133,9 +133,9 @@ class AlphaBetaAgent:
         dest = mv
 
         if bag_ct >= CAPACITY:
-            return (0, manhattan(dest, base))
+            return (0, manDist(dest, base))
         if bag_ct > 0:
-            return (1, manhattan(dest, base))
+            return (1, manDist(dest, base))
 
         d_res = _closest_obj_dist(s, dest)
         return (2, d_res if d_res is not None else FALLBACK_DIST)
@@ -149,7 +149,7 @@ class AlphaBetaAgent:
     def _closer(a_move: Tuple[int, int], b_move: Optional[Tuple[int, int]], base: Tuple[int, int]) -> bool:
         if b_move is None:
             return True
-        return manhattan(a_move, base) < manhattan(b_move, base)
+        return manDist(a_move, base) < manDist(b_move, base)
 
     @staticmethod
     def _active_bag_count(s: GameState) -> int:

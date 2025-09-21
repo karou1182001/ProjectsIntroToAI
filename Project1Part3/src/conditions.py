@@ -1,109 +1,103 @@
-# rules.py
 from typing import List, Tuple, Optional
 from dataclasses import replace
-from grid import Grid, LootTile
+from grid import Grid, LootTile, CAPACITY
 from status import GameState, Player, A_BASE, B_BASE
-from grid import CAPACITY
 
 Coord = Tuple[int, int]
 
-def manhattan(a: Coord, b: Coord) -> int:
-    return abs(a[0] - b[0]) + abs(a[1] - b[1])
+def manDist(a: Coord, b: Coord) -> int:
+    (ar, ac), (br, bc) = a, b
+    return abs(ar - br) + abs(ac - bc)
 
-def neighbors_in_bounds(grid: Grid, pos: Coord) -> List[Coord]:
+
+def close_neigh(grid: Grid, pos: Coord) -> List[Coord]:
     r, c = pos
-    cand = [(r-1,c), (r+1,c), (r,c-1), (r,c+1)]
-    return [p for p in cand if grid.in_bounds(p)]
+    deltas = ((-1, 0), (1, 0), (0, -1), (0, 1))
+    nbrs = [(r + dr, c + dc) for dr, dc in deltas]
+    return [p for p in nbrs if grid.in_bounds(p)]
 
-def legal_moves(state: GameState) -> List[Coord]:
+
+def valid_mov(state: GameState) -> List[Coord]:
+    active: Player = state.B if state.turn == "B" else state.A
+    return close_neigh(state.grid, active.pos)
+
+
+def full_moveto_base(state: GameState) -> List[Coord]:
     who = state.turn
-    me: Player = state.A if who == "A" else state.B
-    return neighbors_in_bounds(state.grid, me.pos)
-
-
-
-def _base_of(who: str):
-    return A_BASE if who == "A" else B_BASE
-
-def moves_towards_base_if_full(state: GameState) -> List[Coord]:
-    """Si la mochila del jugador en turno está llena, devuelve solo movimientos que
-    ACERCAN a su base. Si no hay ninguno que acerque, devuelve los legales normales."""
-    who = state.turn
-    me  = state.A if who == "A" else state.B
-    base = _base_of(who)
-    all_moves = legal_moves(state)
+    me: Player = state.B if who == "B" else state.A
+    home = (B_BASE if who == "B" else A_BASE)
 
     if me.bag.count() < CAPACITY:
-        return all_moves
+        return valid_mov(state)
 
-    cur = manhattan(me.pos, base)
-    better = [m for m in all_moves if manhattan(m, base) < cur]
+    options = valid_mov(state)
+    here_d = manDist(me.pos, home)
+    closer = [m for m in options if manDist(m, home) < here_d]
 
-    # Si hay una movida que entra directamente a base, priorízala (atajo determinista)
-    direct = [m for m in better if m == base]
-    if direct:
-        return direct
+    if home in closer:        
+        return [home]
 
-    return better if better else all_moves
+    return closer or options
 
 
-def _resource_available(state: GameState, at: Coord) -> Optional[LootTile]:
-    tile = state.grid.resource_on(at)
-    if tile is None:
-        return None
-    # Solo está disponible si su idx no está en collected_mask
-    if tile.idx in state.collected_mask:
-        return None
-    return tile
-
-def _deliver_if_on_base(state: GameState, who: str, p: Player) -> Tuple[Player, int]:
-    # Si está parado en su base, descarga toda la mochila
-    is_on_base = (p.pos == (A_BASE if who == "A" else B_BASE))
-    if not is_on_base or p.bag.count() == 0:
-        return p, 0
-    delivered_count = p.bag.count()
-    new_p = p.deliver()
-    return new_p, delivered_count
-
-def apply_move(state: GameState, dest: Coord) -> GameState:
-    """Aplica un movimiento para el jugador del turno:
-    - mueve a la celda destino
-    - si hay recurso y hay espacio, lo recoge (y lo saca del mapa)
-    - si está en base, entrega todo lo que tenga
+# ============  state transition ============
+def exec_move(state: GameState, dest: Coord) -> GameState:
+    """
+    Execute one action for the current player:
+       step to dest
+       pick up if resource present and capacity left
+       deliver all if standing on own base
+      flip the turn
+    Returns a NEW GameState
     """
     who = state.turn
-    me: Player = state.A if who == "A" else state.B
+    me: Player = state.B if who == "B" else state.A
 
-    # Mover
-    moved = replace(me, pos=dest)
+    # --- Internal helpers --------------------------------------------
+    def __hop(p: Player, where: Coord) -> Player:
+        return replace(p, pos=where)
 
-    # Si hay recurso disponible en la celda y tengo espacio, lo recojo
-    tile = _resource_available(state, dest)
+    def __spot_loot(s: GameState, where: Coord) -> Optional[LootTile]:
+        t = s.grid.resource_on(where)
+        return None if (t is None or t.idx in s.collected_mask) else t
+
+    def __stash_if_room(p: Player, mask_set: set, tile: Optional[LootTile]) -> Player:
+        if tile is None or p.bag.is_full():
+            return p
+        mask_set.add(tile.idx)
+        return replace(p, bag=p.bag.add(tile.kind))
+
+    def __drop_if_home(p: Player, side: str) -> Tuple[Player, int]:
+        home = (B_BASE if side == "B" else A_BASE)
+        if p.pos != home or p.bag.count() == 0:
+            return p, 0
+        delivered = p.bag.count()
+        return p.deliver(), delivered
+
+    # --- move ---------------------------------------------------------------
+    moved = __hop(me, dest)
+
+    # --- collect ------------------------------------------------------------
     new_mask = set(state.collected_mask)
-    if tile is not None and not moved.bag.is_full():
-        moved = replace(moved, bag=moved.bag.add(tile.kind))
-        new_mask.add(tile.idx)  # sacar ese recurso del mapa
+    loot = __spot_loot(state, dest)
+    moved = __stash_if_room(moved, new_mask, loot)
 
-    # Si estoy en base, entrego todo
-    moved_after_deliver, delivered_now = _deliver_if_on_base(state, who, moved)
+    # --- deliver ------------------------------------------------------------
+    moved, delivered_now = __drop_if_home(moved, who)
 
-    # Actualizar jugador correspondiente y el global delivered
+    # ---  write back ---------------------------------------------------------
     if who == "A":
-        newA = moved_after_deliver
-        newB = state.B
+        A_new, B_new = moved, state.B
     else:
-        newA = state.A
-        newB = moved_after_deliver
+        A_new, B_new = state.A, moved
 
-    new_state = replace(
+    updated = replace(
         state,
-        A=newA,
-        B=newB,
+        A=A_new,
+        B=B_new,
         collected_mask=frozenset(new_mask),
         delivered_total_global=state.delivered_total_global + delivered_now,
     )
 
-    # Cambiar turno
-    return new_state.switch_turn()
-
-
+    # --- toggle turn ---------------------------------------------------------
+    return updated.switch_turn()

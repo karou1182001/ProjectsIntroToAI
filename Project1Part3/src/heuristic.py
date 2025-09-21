@@ -1,7 +1,7 @@
 # heuristics.py
 from typing import Optional
 from status import GameState, A_BASE, B_BASE
-from conditions import manhattan
+from conditions import manDist
 
 STEP_TAX = 3            # “impuesto por paso”: rompe empates y castiga paseos
 NEAR_RES_BONUS = 60     # cuánta recompensa por estar cerca de recurso
@@ -13,7 +13,7 @@ def _nearest_remaining_resource_dist(state: GameState, pos) -> Optional[int]:
     for tile in state.grid.resources:
         if tile.idx in state.collected_mask:
             continue
-        d = manhattan(pos, tile.pos) * state.grid.cheapest_step()
+        d = manDist(pos, tile.pos) * state.grid.cheapest_step()
         dmin = d if dmin is None else min(dmin, d)
     return dmin
 
@@ -33,9 +33,9 @@ def evaluate(state: GameState) -> int:
 
     # 3) Si llevan recursos, empujar fuerte hacia su base
     if A.bag.count() > 0:
-        val += max(0, RETURN_BASE_BONUS - manhattan(A.pos, baseA) * state.grid.cheapest_step() * 10)
+        val += max(0, RETURN_BASE_BONUS - manDist(A.pos, baseA) * state.grid.cheapest_step() * 10)
     if B.bag.count() > 0:
-        val -= max(0, RETURN_BASE_BONUS - manhattan(B.pos, baseB) * state.grid.cheapest_step() * 10)
+        val -= max(0, RETURN_BASE_BONUS - manDist(B.pos, baseB) * state.grid.cheapest_step() * 10)
 
     # 4) Impuesto por paso: favorece terminar y evita ping-pong
     val -= STEP_TAX

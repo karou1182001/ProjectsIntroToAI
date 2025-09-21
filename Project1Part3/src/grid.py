@@ -145,6 +145,6 @@ class Grid:
     def cheapest_step(self) -> int:
         """
         Minimal per-step cost on this board.
-        Heuristics multiply Manhattan distance by this to remain admissible.
+        Heuristics multiply manDist distance by this to remain admissible.
         """
         return self._min_cost
