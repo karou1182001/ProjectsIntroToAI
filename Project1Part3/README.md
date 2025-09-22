@@ -1,5 +1,7 @@
 # Agent A vs Agent B grid
 
+<img width="414" height="357" alt="image" src="https://github.com/user-attachments/assets/74b70d57-b246-48a5-b475-5de8d6b47f49" />
+
 A two player grid world where agents collect resources and race back to base. Our main agent uses Minimax with Alpha Beta pruning plus a backpack aware heuristic. 
 Our game includes a Ui made with pygame.
 
