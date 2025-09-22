@@ -1,22 +1,7 @@
-# A* Collector 
+# Agent A vs Agent B grid
 
-<img width="336" height="301" alt="image" src="https://github.com/user-attachments/assets/7a18ea95-a895-469a-bb45-326201b81eb2" />
-
-
-Small A* search project with a 5×5 grid, resource pickups, terrain costs, and a Pygame UI.
-Goal: deliver Stone ×3, Iron ×2, Crystal ×1 while minimizing total cost (sum of terrain entry costs).
-
-Features
-
-A* with pluggable heuristics:
-
-- Main heuristic (admissible, guided)
-
-- Zero / Dijkstra baseline (for validation)
-
-Clean GUI: terrain colors, S/I/C resource labels, optimal path, metrics.
-
-Prints the exact optimal path (cell coordinates) to the terminal when you solve.
+A two player grid world where agents collect resources and race back to base. Our main agent uses Minimax with Alpha Beta pruning plus a backpack aware heuristic. 
+Our game includes a Ui made with pygame.
 
 ## Requirements
 
@@ -43,33 +28,22 @@ pip install pygame
 ## Usage
 
 ```python
-python pygame_ui.py
+cd src
+python game.py
 ```
-The window shows the grid on the left and a panel on the right with status, controls, legend, and metrics.
-
 ## Controls
-- M — Switch map 
-- 1 — Use Main heuristic
-- 0 — Use Zero (Dijkstra) heuristic
-- R — Solve (run A* with the currently selected heuristic)
--  C — Clear result (hide path/metrics)
-- ESC — Quit
 
-### What you’ll see
+- M – Switch map
+- 1 / 0 – Toggle B’s agent: Random / Minimax
+- P – Play / Pause auto-play
+- N – Advance one turn (step mode)
+- C – Reset current map
+- ESC – Quit
 
-Pink path over the grid (the optimal route).
+## What you’ll see
 
-### Metrics in the right panel:
-- Total cost (sum of terrain entry costs: Grass=1, Hill=2, Swamp=3, Mountain=4)
-- Path length (number of moves len(path) - 1)
-- Expanded nodes
-- Runtime 
-- Delivered: S / I / C
-
-### Path printed to terminal
-When you press R and a solution is found, the program also prints to your terminal:
-the ordered list of coordinates of the optimal path
-
-**AI assistance:** We used ChatGPT to speed up coding:  all design/algorithms are our own.
-
+- Colored terrain; bases at (0,0) for A and (4,4) for B
+- S/I/C letters for Stone/Iron/Crystal
+- Pink circles = players
+- Metrics: delivered counts, backpack sizes, remaining resources, and Last Agent decide
 
